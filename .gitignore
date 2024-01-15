@@ -1,0 +1,17 @@
+# PyInstaller build output
+*.toc
+*.zip
+*.pyz
+/build/
+/dist/
+*.spec
+
+# If you have specific HTML files to ignore
+*.html
+
+# If you have a directory named 'html', uncomment the next line
+#/html/
+
+# Exclude log files and database files
+*.log
+*.db
