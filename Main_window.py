@@ -12,6 +12,8 @@ from PyQt6.QtWidgets import QComboBox
 
 from scipy.signal import butter, filtfilt
 
+from data.Timeseries import Timeseries, parse_data_file
+from typing import List
 
 class MplCanvas(FigureCanvas):
     def __init__(self, width=5, height=4, dpi=100,Title="undefined",X_axis ="undefined",Y_axis="undefined"):
@@ -55,7 +57,6 @@ class SignalViewer(QMainWindow):
         self.main_layout = QHBoxLayout(self.main_widget)
         self.setWindowTitle("Signal Analysis Tool")
         
-
         # Left Panel for Whole Signal using Matplotlib
         self.left_panel = MplCanvas(width=5, height=4, dpi=100)
     
@@ -132,8 +133,13 @@ class SignalViewer(QMainWindow):
         self.toggle_xaxis_button.clicked.connect(self.toggle_xaxis)
         self.right_layout.addWidget(self.toggle_xaxis_button)
 
+        # Signal selector dropdown
+        self.signal_selector_dropdown = QComboBox()
+        self.signal_selector_dropdown.addItems(["No Signal Loaded"])
+        self.right_layout.addWidget(self.signal_selector_dropdown)
+        self.signal_selector_dropdown.currentIndexChanged.connect(self.signal_selector_index_changed)
+        
         self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
-
 
         # Add Right Panel to Main Layout
         self.main_layout.addWidget(self.right_panel)
@@ -229,8 +235,6 @@ class SignalViewer(QMainWindow):
 
         self.bottom_right_panel.update_canvas(freq,np.abs(y_fft_half),"FFT applied on interval","Frequency (Hz)","amplitude")
 
-
-
     def save_to_excel(self):
         if self.signal is not None:
             # Create a DataFrame and save to Excel
@@ -243,14 +247,28 @@ class SignalViewer(QMainWindow):
                 print(f"Error saving to Excel: {e}")
 
     def load_from_csv(self):
-        self.filepath, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv)")
+        self.filepath, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv);;Text files (*.txt)")
         if self.filepath:
-            self.file_name = os.path.basename(self.filepath)
-            try:
-                df = pd.read_csv(self.filepath)
-                self.time = df['TimeStamp (ms)'].values
-                self.signal = df['ECG3'].values
-                self.plot_signals(file_name=os.path.basename(self.filepath),Y_axis="amplitude")
-            except Exception as e:
-                print(f"Error loading from CSV: {e}")
+            self.timeseries:List[Timeseries] = parse_data_file(self.filepath, self.sampling_rate)
+            self.update_signal_selector()
+    
+    def update_signal_selector(self):
+        """ 
+        Updates the signal selector dropdown with the timeseries loaded from the CSV file.
+        """
+        self.signal_selector_dropdown.clear()
+        self.signal_selector_dropdown.addItems([timeseries.name for timeseries in self.timeseries])
+        self.signal_selector_dropdown.setCurrentIndex(0)
+        self.signal_selector_index_changed(0)
 
+    #########################
+    # Signal Event Handlers #
+    #########################
+    def signal_selector_index_changed(self, index):
+        """ 
+        signal handler for signal selector dropdown 
+        """
+        self.signal = self.timeseries[index].values
+        self.time = np.arange(len(self.signal)) / self.sampling_rate
+        self.file_name = self.timeseries[index].name
+        self.plot_signals(self.file_name,"amplitude")
