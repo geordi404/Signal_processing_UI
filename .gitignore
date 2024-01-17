@@ -2,6 +2,7 @@
 *.toc
 *.zip
 *.pyz
+*.pyc
 /build/
 /dist/
 *.spec
