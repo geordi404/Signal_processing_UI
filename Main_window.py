@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QComboBox
 
 from scipy.signal import butter, filtfilt
 
-from data.Timeseries import Timeseries, parse_data_file
+from data.Timeseries import Timeseries, parse_data_file_csv, parse_data_file_xdf
 from typing import List
 
 class MplCanvas(FigureCanvas):
@@ -247,9 +247,12 @@ class SignalViewer(QMainWindow):
                 print(f"Error saving to Excel: {e}")
 
     def load_from_csv(self):
-        self.filepath, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv);;Text files (*.txt)")
+        self.filepath, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv);;Text files (*.txt);; XDF Files (*.xdf)")
         if self.filepath:
-            self.timeseries:List[Timeseries] = parse_data_file(self.filepath, self.sampling_rate)
+            if self.filepath.endswith(".xdf"):
+                self.timeseries:List[Timeseries] = parse_data_file_xdf(self.filepath)
+            else:
+                self.timeseries:List[Timeseries] = parse_data_file_csv(self.filepath, self.sampling_rate)
             self.update_signal_selector()
     
     def update_signal_selector(self):
