@@ -28,12 +28,12 @@ class MplCanvas(FigureCanvas):
         
 
     def update_canvas(self,X_values,Y_values,Title="undefined",X_axis ="undefined",Y_axis="undefined"):
-        self.axes.clear()
+        # self.axes.clear()
         self.axes.set_xlabel(X_axis)
         self.axes.set_ylabel(Y_axis)
         self.axes.set_title(Title)
         self.axes.plot(X_values,Y_values)
-        self.draw()
+        # self.draw()
         
 #this class is needed to make the navigation bar smaller
 class CustomNavigationToolbar(NavigationToolbar):
@@ -48,8 +48,8 @@ class SignalViewer(QMainWindow):
         self.sampling_rate = sampling_rate  # Default sampling rate
         self.start_sample = 0      # Start sample for FFT
         self.end_sample = 500      # End sample for FFT
-        self.signal = None         # Variable to store the generated signal
-        self.time = None           # Variable to store the time array
+        self.signals_plotted:List[Timeseries] = []         # Variable to store the generated signal
+        self.time_stamps = None           # Variable to store the time array
         self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
         self.file_name= "undefined"
         # Main Widget and Layout
@@ -133,11 +133,25 @@ class SignalViewer(QMainWindow):
         self.toggle_xaxis_button.clicked.connect(self.toggle_xaxis)
         self.right_layout.addWidget(self.toggle_xaxis_button)
 
-        # Signal selector dropdown
+        # Signal selector dropdown selector
+        self.signal_selector_layout = QHBoxLayout()
         self.signal_selector_dropdown = QComboBox()
         self.signal_selector_dropdown.addItems(["No Signal Loaded"])
-        self.right_layout.addWidget(self.signal_selector_dropdown)
         self.signal_selector_dropdown.currentIndexChanged.connect(self.signal_selector_index_changed)
+        signal_selector_label = QLabel("Signal:")
+        signal_selector_label.setFixedSize(50, 20)
+        self.signal_selector_layout.addWidget(signal_selector_label)
+        self.signal_selector_layout.addWidget(self.signal_selector_dropdown)
+        # Create button to add/remove signals
+        self.add_signal_button = QPushButton("Add")
+        self.add_signal_button.clicked.connect(self.add_signal_to_plot)
+        self.signal_selector_layout.addWidget(self.add_signal_button)
+        self.remove_signal_button = QPushButton("Remove")
+        self.remove_signal_button.clicked.connect(self.remove_signal_from_plot)        
+        self.signal_selector_layout.addWidget(self.remove_signal_button)
+        
+        # Add signal selector to right panel
+        self.right_layout.addLayout(self.signal_selector_layout)
         
         self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
 
@@ -157,8 +171,8 @@ class SignalViewer(QMainWindow):
         b, a = butter(order, cutoff, btype=filter_type, fs=self.sampling_rate)
         
         # Apply the filter
-        filtered_signal = filtfilt(b, a, self.signal)
-        self.signal = filtered_signal
+        filtered_signal = filtfilt(b, a, self.signals_plotted)
+        self.signals_plotted = filtered_signal
         # Update the plot
         self.plot_signals(self.file_name, "amplitude")
 
@@ -168,15 +182,25 @@ class SignalViewer(QMainWindow):
         self.plot_signals(self.file_name,"amplitude") 
 
     def plot_signals(self,file_name,Y_axis):
-        if self.x_axis_in_seconds:
-            x_axis = self.time
-            x_label = "Time (Seconds)"
-        else:
-            x_axis = np.arange(len(self.time))
-            x_label = "Sample Number"
+        # if self.x_axis_in_seconds:
+        x_axis = self.time_stamps
+        x_label = "Time (Seconds)"
+        # else:
+        #     x_axis = np.arange(len(self.time_stamps))
+        #     x_label = "Sample Number"
 
         #update left_panel
-        self.left_panel.update_canvas(x_axis,self.signal,Title=file_name,Y_axis=Y_axis,X_axis=x_label)
+        self.left_panel.axes.clear()
+        print(self.signals_plotted)
+        for signal in self.signals_plotted:
+            print(f"Update graph with {signal.name}")
+            self.left_panel.axes.plot(signal.timestamps, signal.values, label=signal.name)
+        # self.left_panel.update_canvas(x_axis,self.signals_plotted,Title=file_name,Y_axis=Y_axis,X_axis=x_label)
+        self.left_panel.axes.legend()
+        self.left_panel.axes.set_xlabel(x_label)
+        self.left_panel.axes.set_ylabel("Amplitude")
+        self.left_panel.draw()
+        
         self.Update_interval_view(file_name,Y_axis)
     
     def Update_interval_view(self,file_name,Y_axis):
@@ -186,14 +210,14 @@ class SignalViewer(QMainWindow):
  
             # Ensure the start and end are within the bounds of the signal
             self.start_sample = max(start, 0)
-            self.end_sample = min(end, len(self.signal))
+            self.end_sample = min(end, len(self.signals_plotted))
         except ValueError:
             # Handle invalid input
             print("Invalid start or end sample input.")
             return
 
         # Use the stored signal for analysis
-        if self.signal is not None:
+        if self.signals_plotted is not None:
             # Determine the FFT window size
   
             N = self.end_sample - self.start_sample
@@ -207,24 +231,29 @@ class SignalViewer(QMainWindow):
 
             # Perform FFT analysis
 
-            self.perform_fft(N)
+            # self.perform_fft(N)
 
     def Update_Temporal_interval_view(self, N,title):
         if self.x_axis_in_seconds:
-            x_axis = self.time[self.start_sample:self.end_sample]
+            # x_axis = self.time_stamps[self.start_sample:self.end_sample]
             x_label = "Time (Seconds)"
         else:
-            x_axis = np.arange(self.start_sample, self.end_sample)
+            # x_axis = np.arange(self.start_sample, self.end_sample)
             x_label = "Sample Number"
 
-        self.top_right_panel.update_canvas(x_axis,self.signal[self.start_sample:self.end_sample],title)
-        self.top_right_panel.axes.plot(x_axis, self.signal[self.start_sample:self.end_sample])
+        # self.top_right_panel.update_canvas(x_axis,self.signals_plotted[self.start_sample:self.end_sample],title)
+        self.top_right_panel.axes.clear()
+        for signal in self.signals_plotted:
+            self.top_right_panel.axes.plot(signal.timestamps[self.start_sample:self.end_sample], signal.values[self.start_sample:self.end_sample], label=signal.name)
+        # self.top_right_panel.axes.plot(x_axis, self.signals_plotted[self.start_sample:self.end_sample])
         self.top_right_panel.axes.set_xlabel(x_label)
         self.top_right_panel.axes.set_ylabel("Amplitude")
+        self.top_right_panel.axes.set_title(title)
+        self.top_right_panel.axes.legend()
         self.top_right_panel.draw()
 
     def perform_fft(self, N):
-        y_fft = np.fft.fft(self.signal[self.start_sample:self.end_sample]) / N
+        y_fft = np.fft.fft(self.signals_plotted[self.start_sample:self.end_sample]) / N
 
         # Frequency resolution is equal to the sampling rate divided by the number of samples
         freq_resolution = self.sampling_rate / N
@@ -236,9 +265,9 @@ class SignalViewer(QMainWindow):
         self.bottom_right_panel.update_canvas(freq,np.abs(y_fft_half),"FFT applied on interval","Frequency (Hz)","amplitude")
 
     def save_to_excel(self):
-        if self.signal is not None:
+        if self.signals_plotted is not None:
             # Create a DataFrame and save to Excel
-            df = pd.DataFrame({'Time': self.time, 'Signal': self.signal})
+            df = pd.DataFrame({'Time': self.time_stamps, 'Signal': self.signals_plotted})
             try:
                 self.filepath = "signal_data.xlsx"  # You can modify the file path as needed
                 df.to_excel(self.filepath, index=False)
@@ -271,7 +300,29 @@ class SignalViewer(QMainWindow):
         """ 
         signal handler for signal selector dropdown 
         """
-        self.signal = self.timeseries[index].values
-        self.time = np.arange(len(self.signal)) / self.sampling_rate
-        self.file_name = self.timeseries[index].name
+        pass
+        # self.signals = self.timeseries[index].values
+        # if self.timeseries[index].timestamps is not None:
+        #     self.time_stamps = self.timeseries[index].timestamps
+        # else:
+        #     self.time_stamps = np.arange(len(self.signals)) / self.sampling_rate
+        # self.file_name = self.timeseries[index].name
+        # self.plot_signals(self.file_name,"amplitude")
+        
+    def add_signal_to_plot(self):
+        """
+        Adds a signal to the plot.
+        """
+        print("add signal")
+        self.signals_plotted.append(self.timeseries[self.signal_selector_dropdown.currentIndex()])
+        self.plot_signals(self.file_name,"amplitude")
+        
+    def remove_signal_from_plot(self):
+        """
+        Removes a signal from the plot.
+        """
+        print("remove signal")
+        for signal in self.signals_plotted:
+            if signal.name == self.timeseries[self.signal_selector_dropdown.currentIndex()].name:
+                self.signals_plotted.remove(signal)
         self.plot_signals(self.file_name,"amplitude")

@@ -108,7 +108,7 @@ def parse_data_file_csv(file_path, sampling_rate):
         count = 0
         for column in column_name:
             data = df[column].values
-            timeseries.append(Timeseries(data, sampling_rate, column))
+            timeseries.append(Timeseries(data, sampling_rate, column, time))
             count += 1
         print(f"Loaded {count} timeseries from {file_name}.")
     except Exception as e:
