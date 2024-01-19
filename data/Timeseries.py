@@ -102,7 +102,7 @@ def parse_data_file_csv(file_path, sampling_rate):
     print(f"Loading data from {file_name} ...")
     try:
         df = pd.read_csv(file_path)
-        time = df["TimeStamp (ms)"].values
+        time = df["TimeStamp (ms)"].values/1000
         column_name = df.columns.values[1:]
         print(column_name)
         count = 0
