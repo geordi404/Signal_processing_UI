@@ -31,7 +31,7 @@ class Timeseries:
         Returns the sampling rate of the timeseries.
         :return: The sampling rate of the timeseries.
         """
-        return self.sampling_rate
+        return self.sampling_rate_data
 
     def set_sampling_rate(self, sampling_rate):
         """

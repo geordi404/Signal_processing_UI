@@ -81,7 +81,7 @@ class SignalViewer(QMainWindow):
             Timeseries
         ] = []  # Variable to store the generated signal
         self.time_stamps = None  # Variable to store the time array
-        self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
+        self.x_axis_in_seconds = False  # Initially, X-axis is in seconds
         self.file_name = "undefined"
         # Main Widget and Layout
         self.main_widget = QWidget()
@@ -124,9 +124,11 @@ class SignalViewer(QMainWindow):
         self.Update_interval_view_button.clicked.connect(
             lambda: self.Update_interval_view(self.file_name, "amplitude")
         )
-        self.fft_control_layout.addWidget(QLabel("Start Sample:"))
+        self.start_sample_label = QLabel("Start Sample:")
+        self.end_sample_label = QLabel("End Sample:")
+        self.fft_control_layout.addWidget(self.start_sample_label)
         self.fft_control_layout.addWidget(self.start_sample_input)
-        self.fft_control_layout.addWidget(QLabel("End Sample:"))
+        self.fft_control_layout.addWidget( self.end_sample_label)
         self.fft_control_layout.addWidget(self.end_sample_input)
         self.fft_control_layout.addWidget(self.Update_interval_view_button)
         self.right_layout.addWidget(self.fft_control_panel)
@@ -144,6 +146,16 @@ class SignalViewer(QMainWindow):
         self.apply_filter_button = QPushButton("Apply Filter")
         self.apply_filter_button.clicked.connect(self.apply_filter)
 
+        # Signal selector dropdown selector FFT
+        self.signal_selector_dropdown_fft = QComboBox()
+        self.signal_selector_dropdown_fft.addItems(["No Signal Loaded"])
+        self.signal_selector_dropdown_fft.currentIndexChanged.connect(
+            self.signal_selector_index_changed_fft
+        )
+        signal_selector_label_fft = QLabel("Signal: FFT")
+        
+        self.filter_control_layout.addWidget(signal_selector_label_fft)
+        self.filter_control_layout.addWidget(self.signal_selector_dropdown_fft)
         self.filter_control_layout.addWidget(QLabel("Filter Type:"))
         self.filter_control_layout.addWidget(self.filter_type_dropdown)
         self.filter_control_layout.addWidget(QLabel("Cutoff Frequency:"))
@@ -168,7 +180,7 @@ class SignalViewer(QMainWindow):
         self.toggle_xaxis_button = QPushButton("Toggle X-Axis (Samples/Seconds)")
         self.toggle_xaxis_button.clicked.connect(self.toggle_xaxis)
         self.right_layout.addWidget(self.toggle_xaxis_button)
-
+        
         # Signal selector dropdown selector
         self.signal_selector_layout = QHBoxLayout()
         self.signal_selector_dropdown = QComboBox()
@@ -191,7 +203,7 @@ class SignalViewer(QMainWindow):
         # Add signal selector to right panel
         self.right_layout.addLayout(self.signal_selector_layout)
 
-        self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
+        self.x_axis_in_seconds = False  # Initially, X-axis is in seconds
 
         # Add Right Panel to Main Layout
         self.main_layout.addWidget(self.right_panel)
@@ -208,14 +220,27 @@ class SignalViewer(QMainWindow):
         # Create the filter
         b, a = butter(order, cutoff, btype=filter_type, fs=self.sampling_rate)
 
+        # Get fft signal selected index
+        signal_index = self.signal_selector_dropdown_fft.currentIndex()
+        # Get the signal
+        signal = self.signals_plotted[signal_index]       
+        
         # Apply the filter
-        filtered_signal = filtfilt(b, a, self.signals_plotted)
-        self.signals_plotted = filtered_signal
+        filtered_signal = filtfilt(b, a, signal.values)
+        self.signals_plotted[signal_index].values = filtered_signal
         # Update the plot
         self.plot_signals(self.file_name, "amplitude")
 
     def toggle_xaxis(self):
         self.x_axis_in_seconds = not self.x_axis_in_seconds
+        if not self.x_axis_in_seconds:
+            self.toggle_xaxis_button.setText("Toggle X-Axis (Samples)")
+            self.end_sample_label.setText("End Sample:")
+            self.start_sample_label.setText("Start Sample:")
+        else:
+            self.toggle_xaxis_button.setText("Toggle X-Axis (Seconds)")
+            self.end_sample_label.setText("End Time (s):")
+            self.start_sample_label.setText("Start Time (s):")
         self.plot_signals(self.file_name, "amplitude")
 
     def plot_signals(self, file_name, Y_axis):
@@ -262,8 +287,10 @@ class SignalViewer(QMainWindow):
         # Use the stored signal for analysis
         if self.signals_plotted is not None:
             # Determine the FFT window size
-
-            N = self.end_sample - self.start_sample
+            if self.x_axis_in_seconds:
+                N = int((self.end_sample - self.start_sample) * self.sampling_rate)
+            else:
+                N = self.end_sample - self.start_sample
             N_fft = N / 2
             if N <= 0:
                 print("Invalid FFT window size.")
@@ -275,8 +302,7 @@ class SignalViewer(QMainWindow):
             )
 
             # Perform FFT analysis
-
-            # self.perform_fft(N)
+            self.perform_fft(N)
 
     def Update_Temporal_interval_view(self, N, title):
         self.top_right_panel.axes.clear()
@@ -284,20 +310,24 @@ class SignalViewer(QMainWindow):
             if self.x_axis_in_seconds:
                 x_label = "Time (Seconds)"
                 # Get the min index of the signal to plot
-                min_index = min(
-                    [
-                        index
-                        for index, value in enumerate(signal.timestamps)
-                        if self.start_sample <= value <= self.end_sample
-                    ]
-                )
-                max_index = max(
-                    [
-                        index
-                        for index, value in enumerate(signal.timestamps)
-                        if self.start_sample <= value <= self.end_sample
-                    ]
-                )
+                try:
+                    min_index = min(
+                        [
+                            index
+                            for index, value in enumerate(signal.timestamps)
+                            if self.start_sample <= value <= self.end_sample
+                        ]
+                    )
+                    max_index = max(
+                        [
+                            index
+                            for index, value in enumerate(signal.timestamps)
+                            if self.start_sample <= value <= self.end_sample
+                        ]
+                    )   
+                except ValueError:
+                    print("Invalid start or end sample input.")
+                    return
                 print (f"min_index : {min_index}")
                 print (f"max_index : {max_index}")
                 print (f"len(signal.timestamps) : {len(signal.timestamps)}")
@@ -327,19 +357,55 @@ class SignalViewer(QMainWindow):
         self.top_right_panel.draw()
 
     def perform_fft(self, N):
+        
+        # Get fft signal selected index
+        signal_index = self.signal_selector_dropdown_fft.currentIndex()
+        print(f"signal_index : {signal_index}")
+        # Get the signal
+        signal = self.signals_plotted[signal_index]        
+        
+        if self.x_axis_in_seconds:
+            try:     
+                min_index = min(
+                    [
+                        index
+                        for index, value in enumerate(signal.timestamps)
+                        if self.start_sample <= value <= self.end_sample
+                    ]
+                )
+                max_index = max(
+                    [
+                        index
+                        for index, value in enumerate(signal.timestamps)
+                        if self.start_sample <= value <= self.end_sample
+                    ]
+                )
+            except ValueError:
+                print("Invalid start or end sample input.")
+                return
+        else:
+            min_index = int(self.start_sample)
+            max_index = int(self.end_sample)
+                
         y_fft = (
-            np.fft.fft(self.signals_plotted[self.start_sample : self.end_sample]) / N
+            np.fft.fft(signal.values[min_index: max_index]) / N
         )
 
         # Frequency resolution is equal to the sampling rate divided by the number of samples
-        freq_resolution = self.sampling_rate / N
-        freq = np.arange(0, self.sampling_rate / 2 + freq_resolution, freq_resolution)[
-            : N // 2 + 1
+        sampling_rate = int(float(signal.sampling_rate))
+        freq_resolution = sampling_rate / N
+        print(f"freq_resolution : {freq_resolution}")
+        print(f"self.sampling_rate : {sampling_rate}")
+        print(f"N : {N}")
+        print(f"N//2 +1: {N//2+1}")
+        freq = np.arange(0, sampling_rate / 2 + freq_resolution, freq_resolution)[
+            : int(N // 2 + 1)
         ]
 
         # Take only the positive half of the spectrum
-        y_fft_half = y_fft[: N // 2 + 1]
+        y_fft_half = y_fft[: int(N // 2 + 1)]
 
+        self.bottom_right_panel.axes.clear()
         self.bottom_right_panel.update_canvas(
             freq,
             np.abs(y_fft_half),
@@ -347,6 +413,7 @@ class SignalViewer(QMainWindow):
             "Frequency (Hz)",
             "amplitude",
         )
+        self.bottom_right_panel.draw()
 
     def save_to_excel(self):
         if self.signals_plotted is not None:
@@ -388,6 +455,11 @@ class SignalViewer(QMainWindow):
             [timeseries.name for timeseries in self.timeseries]
         )
         self.signal_selector_dropdown.setCurrentIndex(0)
+        self.signal_selector_dropdown_fft.clear()
+        self.signal_selector_dropdown_fft.addItems(
+            [timeseries.name for timeseries in self.timeseries]
+        )
+        self.signal_selector_dropdown_fft.setCurrentIndex(0)
         self.signal_selector_index_changed(0)
 
     #########################
@@ -405,6 +477,18 @@ class SignalViewer(QMainWindow):
         #     self.time_stamps = np.arange(len(self.signals)) / self.sampling_rate
         # self.file_name = self.timeseries[index].name
         # self.plot_signals(self.file_name,"amplitude")
+        
+    def signal_selector_index_changed_fft(self, index):
+        """
+        signal handler for signal selector dropdown
+        """
+        N = self.end_sample - self.start_sample
+        N_fft = N / 2
+        if N <= 0:
+            print("Invalid FFT window size.")
+            return
+        if len(self.signals_plotted) > 0 and index < len(self.signals_plotted): 
+            self.perform_fft(N)
 
     def add_signal_to_plot(self):
         """
@@ -428,3 +512,4 @@ class SignalViewer(QMainWindow):
             ):
                 self.signals_plotted.remove(signal)
         self.plot_signals(self.file_name, "amplitude")
+        
