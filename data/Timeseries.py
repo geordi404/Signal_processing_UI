@@ -132,11 +132,9 @@ def parse_data_file_xdf(file_path):
                     stream["time_series"][:,ch],
                     stream["info"]["nominal_srate"][0],
                     f"{stream['info']['name'][0]}_{ch}",
-                    stream["time_stamps"]
+                    stream["time_stamps"],
                 )
             )
-            print(f"First timestamps: {stream['time_stamps'][0]}")
-            print(f"Last timestamps: {stream['time_stamps'][-1]}")
             count += 1
     print(f"Loaded {count} timeseries from {file_name}.")
     return timeseries

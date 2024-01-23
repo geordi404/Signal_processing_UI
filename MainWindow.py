@@ -20,7 +20,7 @@ import pandas as pd
 from PyQt6.QtWidgets import QFileDialog  # Import QFileDialog
 import os
 from PyQt6 import QtCore
-
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QComboBox
 
 from scipy.signal import butter, filtfilt
@@ -72,6 +72,10 @@ class CustomNavigationToolbar(NavigationToolbar):
 
 
 class SignalViewer(QMainWindow):
+    # Create UI Signal Event
+    signal_added = pyqtSignal(name="signal_added")
+    signal_removed = pyqtSignal(name="signal_removed")
+    
     def __init__(self, sampling_rate):
         super().__init__()
         self.sampling_rate = sampling_rate  # Default sampling rate
@@ -211,7 +215,11 @@ class SignalViewer(QMainWindow):
         # Set Main Widget and Window Title
         self.setCentralWidget(self.main_widget)
         self.setWindowTitle("Signal Analysis Tool")
-
+        
+        # Connect UI Signal Event
+        self.signal_added.connect(self.update_signal_selector_fft)
+        self.signal_removed.connect(self.update_signal_selector_fft)
+        
     def apply_filter(self):
         filter_type = self.filter_type_dropdown.currentText()
         cutoff = float(self.cutoff_freq_input.text())
@@ -396,7 +404,10 @@ class SignalViewer(QMainWindow):
         else:
             min_index = int(self.start_sample)
             max_index = int(self.end_sample)
-                
+            
+        print(f"min_index : {min_index}")
+        print(f"max_index : {max_index}")
+        print(f"N: {N}")    
         y_fft = (
             np.fft.fft(signal.values[min_index: max_index]) / N
         )
@@ -465,12 +476,18 @@ class SignalViewer(QMainWindow):
             [timeseries.name for timeseries in self.timeseries]
         )
         self.signal_selector_dropdown.setCurrentIndex(0)
+        self.signal_selector_index_changed(0)
+    
+    def update_signal_selector_fft(self):
+        """
+        Updates the signal selector dropdown with the timeseries plotted on the graph.
+        """
         self.signal_selector_dropdown_fft.clear()
         self.signal_selector_dropdown_fft.addItems(
-            [timeseries.name for timeseries in self.timeseries]
+            [signal.name for signal in self.signals_plotted]
         )
         self.signal_selector_dropdown_fft.setCurrentIndex(0)
-        self.signal_selector_index_changed(0)
+        self.signal_selector_index_changed_fft(0)
 
     #########################
     # Signal Event Handlers #
@@ -508,6 +525,7 @@ class SignalViewer(QMainWindow):
         self.signals_plotted.append(
             self.timeseries[self.signal_selector_dropdown.currentIndex()]
         )
+        self.signal_added.emit()
         self.plot_signals(self.file_name, "amplitude")
 
     def remove_signal_from_plot(self):
@@ -521,5 +539,5 @@ class SignalViewer(QMainWindow):
                 == self.timeseries[self.signal_selector_dropdown.currentIndex()].name
             ):
                 self.signals_plotted.remove(signal)
+        self.signal_removed.emit()
         self.plot_signals(self.file_name, "amplitude")
-        
