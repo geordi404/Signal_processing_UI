@@ -22,7 +22,8 @@ import os
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QComboBox
-
+from local_tools.filters import normalize_range
+from SignalActionPanel import SignalActionPanel
 from scipy.signal import butter, filtfilt
 
 from data.Timeseries import Timeseries, parse_data_file_csv, parse_data_file_xdf
@@ -126,7 +127,7 @@ class SignalViewer(QMainWindow):
         self.end_sample_input = QLineEdit(str(self.end_sample))
         self.Update_interval_view_button = QPushButton("Update")
         self.Update_interval_view_button.clicked.connect(
-            lambda: self.Update_interval_view(self.file_name, "amplitude")
+            lambda: self.update_interval_view(self.file_name, "amplitude")
         )
         self.start_sample_label = QLabel("Start Sample:")
         self.end_sample_label = QLabel("End Sample:")
@@ -215,7 +216,12 @@ class SignalViewer(QMainWindow):
         # Set Main Widget and Window Title
         self.setCentralWidget(self.main_widget)
         self.setWindowTitle("Signal Analysis Tool")
-        
+
+        # Add signal action panel
+        self.signal_action_panel = SignalActionPanel()
+        self.right_panel.layout().addWidget(self.signal_action_panel)
+        self.signal_action_panel.normalizeButtonClicked.connect(self.normalize_signal)
+
         # Connect UI Signal Event
         self.signal_added.connect(self.update_signal_selector_fft)
         self.signal_removed.connect(self.update_signal_selector_fft)
@@ -278,15 +284,15 @@ class SignalViewer(QMainWindow):
         self.left_panel.axes.set_ylabel("Amplitude")
         self.left_panel.draw()
 
-        self.Update_interval_view(file_name, Y_axis)
+        self.update_interval_view(file_name, Y_axis)
 
-    def Update_interval_view(self, file_name, Y_axis):
+    def update_interval_view(self, file_name, Y_axis):
         try:
             start = float(self.start_sample_input.text())
             end = float(self.end_sample_input.text())
 
             # Ensure the start and end are within the bounds of the signal
-            self.start_sample = max(start, 0)
+            self.start_sample = start
             self.end_sample = end
             print(f"start sample : {self.start_sample}")
             print(f"end sample : {self.end_sample}")
@@ -308,14 +314,14 @@ class SignalViewer(QMainWindow):
                 return
 
             # Update the top right panel (Temporal View)
-            self.Update_Temporal_interval_view(
+            self.update_temporal_interval_view(
                 N, title=str("interval view on " + str(N) + " samples")
             )
 
             # Perform FFT analysis
             self.perform_fft(N)
 
-    def Update_Temporal_interval_view(self, N, title):
+    def update_temporal_interval_view(self, N, title):
         self.top_right_panel.axes.clear()
         for signal in self.signals_plotted:
             if self.x_axis_in_seconds:
@@ -367,8 +373,7 @@ class SignalViewer(QMainWindow):
         self.top_right_panel.axes.legend()
         self.top_right_panel.draw()
 
-    def perform_fft(self, N):
-        
+    def perform_fft(self, N): 
         # Get fft signal selected index
         signal_index = self.signal_selector_dropdown_fft.currentIndex()
         print(f"signal_index : {signal_index}")
@@ -540,4 +545,13 @@ class SignalViewer(QMainWindow):
             ):
                 self.signals_plotted.remove(signal)
         self.signal_removed.emit()
+        self.plot_signals(self.file_name, "amplitude")
+        
+    def normalize_signal(self):
+        """
+        Normalize a signal
+        """
+        for i,signal in enumerate(self.signals_plotted):
+            self.signals_plotted[i].values = normalize_range(signal.values)
+        print("normalize signal")
         self.plot_signals(self.file_name, "amplitude")
