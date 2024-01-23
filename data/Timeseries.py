@@ -31,7 +31,7 @@ class Timeseries:
         Returns the sampling rate of the timeseries.
         :return: The sampling rate of the timeseries.
         """
-        return self.sampling_rate
+        return self.sampling_rate_data
 
     def set_sampling_rate(self, sampling_rate):
         """
@@ -102,13 +102,13 @@ def parse_data_file_csv(file_path, sampling_rate):
     print(f"Loading data from {file_name} ...")
     try:
         df = pd.read_csv(file_path)
-        time = df["TimeStamp (ms)"].values
+        time = df["TimeStamp (ms)"].values/1000
         column_name = df.columns.values[1:]
         print(column_name)
         count = 0
         for column in column_name:
             data = df[column].values
-            timeseries.append(Timeseries(data, sampling_rate, column))
+            timeseries.append(Timeseries(data, sampling_rate, column, time))
             count += 1
         print(f"Loaded {count} timeseries from {file_name}.")
     except Exception as e:
@@ -132,7 +132,7 @@ def parse_data_file_xdf(file_path):
                     stream["time_series"][:,ch],
                     stream["info"]["nominal_srate"][0],
                     f"{stream['info']['name'][0]}_{ch}",
-                    stream["time_stamps"]
+                    stream["time_stamps"],
                 )
             )
             count += 1

@@ -5,7 +5,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import pandas as pd
 from PyQt6.QtWidgets import QFileDialog  # Import QFileDialog
-import Main_window
+import MainWindow
 
 
 import sys
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     dialog = SamplingRateDialog()
     if dialog.exec() == QDialog.DialogCode.Accepted:  # Use QDialog.DialogCode.Accepted
         sampling_rate = dialog.sampling_rate
-        mainWin = Main_window.SignalViewer(sampling_rate)  # Assuming your main window can accept sampling rate
+        mainWin = MainWindow.SignalViewer(sampling_rate)  # Assuming your main window can accept sampling rate
 
         mainWin.setCentralWidget(mainWin.main_widget)
         mainWin.showMaximized()
