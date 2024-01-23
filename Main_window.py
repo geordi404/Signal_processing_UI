@@ -215,18 +215,21 @@ class SignalViewer(QMainWindow):
     def apply_filter(self):
         filter_type = self.filter_type_dropdown.currentText()
         cutoff = float(self.cutoff_freq_input.text())
-        order = int(self.filter_order_input.text())
-
-        # Create the filter
-        b, a = butter(order, cutoff, btype=filter_type, fs=self.sampling_rate)
+        order = int(self.filter_order_input.text())         
 
         # Get fft signal selected index
         signal_index = self.signal_selector_dropdown_fft.currentIndex()
         # Get the signal
-        signal = self.signals_plotted[signal_index]       
+        name = self.timeseries[signal_index].name
+        for i, sig in enumerate(self.signals_plotted):
+            if sig.name == name:
+                signal_index = i
+                
+        # Create the filter
+        b, a = butter(order, cutoff, btype=filter_type, fs=int(float(self.signals_plotted[signal_index].sampling_rate)))
         
         # Apply the filter
-        filtered_signal = filtfilt(b, a, signal.values)
+        filtered_signal = filtfilt(b, a, self.signals_plotted[signal_index].values)
         self.signals_plotted[signal_index].values = filtered_signal
         # Update the plot
         self.plot_signals(self.file_name, "amplitude")
@@ -361,8 +364,15 @@ class SignalViewer(QMainWindow):
         # Get fft signal selected index
         signal_index = self.signal_selector_dropdown_fft.currentIndex()
         print(f"signal_index : {signal_index}")
+        # Get fft signal selected index
+        signal_index = self.signal_selector_dropdown_fft.currentIndex()
         # Get the signal
-        signal = self.signals_plotted[signal_index]        
+        name = self.timeseries[signal_index].name
+        for i, sig in enumerate(self.signals_plotted):
+            if sig.name == name:
+                signal_index = i
+        # Get the signal
+        signal = self.signals_plotted[signal_index]      
         
         if self.x_axis_in_seconds:
             try:     
