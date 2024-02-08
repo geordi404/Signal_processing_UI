@@ -10,7 +10,7 @@ from PyQt6 import QtCore
 
 from PyQt6.QtWidgets import QComboBox
 
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt , iirnotch
 
 from data.Timeseries import Timeseries, parse_data_file_csv, parse_data_file_xdf
 from typing import List
@@ -100,7 +100,7 @@ class SignalViewer(QMainWindow):
         self.filter_control_layout = QHBoxLayout(self.filter_control_panel)
         
         self.filter_type_dropdown = QComboBox()
-        self.filter_type_dropdown.addItems(["Lowpass", "Highpass", "Bandpass", "Bandstop"])
+        self.filter_type_dropdown.addItems(["Lowpass", "Highpass", "Bandpass", "Bandstop","notch"])
         self.cutoff_freq_input = QLineEdit()
         self.filter_order_input = QLineEdit()
 
@@ -154,7 +154,10 @@ class SignalViewer(QMainWindow):
         order = int(self.filter_order_input.text())
 
         # Create the filter
-        b, a = butter(order, cutoff, btype=filter_type, fs=self.sampling_rate)
+        if(filter_type=="notch"):
+            b, a = iirnotch(cutoff, order, self.sampling_rate)
+        else:
+            b, a = butter(order, cutoff, btype=filter_type, fs=self.sampling_rate)
         
         # Apply the filter
         filtered_signal = filtfilt(b, a, self.signal)
