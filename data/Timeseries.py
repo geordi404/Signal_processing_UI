@@ -6,6 +6,7 @@ import pandas as pd
 import os
 from typing import List
 import pyxdf
+import numpy as np
 
 
 class Timeseries:
@@ -97,18 +98,35 @@ def parse_data_file_csv(file_path, sampling_rate,timeseries: List[Timeseries]):
     :param file_path: The path to the file to parse.
     :return: A timeseries object.
     """
-    
+    sampling_rate_effective=0
     file_name = os.path.basename(file_path)
     print(f"Loading data from {file_name} ...")
     try:
         df = pd.read_csv(file_path)
-        time = df["time"].values/1000
+        time = df["time"].values
+        time_diffs=np.diff(time)
+        sampling_rate_effective=1/np.mean(time_diffs)
+        print(f"Effective sampling rate: {sampling_rate_effective} Hz")
+        # Calculate the number of zeros to add based on the desired start time of 0 seconds
+        desired_start_time = 0
+        actual_start_time = time[0]
+        samples_to_add = int(np.ceil((actual_start_time - desired_start_time) * sampling_rate_effective))
+        print(f"Number of zero-valued samples to add: {samples_to_add}")
+
+        # Adjust the time array by adding time points at the beginning
+        initial_time = time[0] - (samples_to_add / sampling_rate_effective)
+        new_time_points = np.linspace(initial_time, time[0], num=samples_to_add, endpoint=False)
+        time = np.concatenate((new_time_points, time))
+
         column_name = df.columns.values[1:]
-        print(column_name)
+        print("columnname:"+str(column_name))
         count = 0
         for column in column_name:
             data = df[column].values
-            timeseries.append(Timeseries(data, sampling_rate, column, time))
+            # Prepend zeros to the data array
+            zero_data = np.zeros(samples_to_add)
+            data = np.concatenate((zero_data, data))
+            timeseries.append(Timeseries(data, sampling_rate_effective, column, time))
             count += 1
         print(f"Loaded {count} timeseries from {file_name}.")
     except Exception as e:

@@ -468,15 +468,10 @@ class SignalViewer(QMainWindow):
             if self.filepath.endswith(".xdf"):
                 self.timeseries: List[Timeseries] = parse_data_file_xdf(self.filepath)
             else:
-                if(self.timeseries is None):
-                    self.timeseries: List[Timeseries] = []
-                    self.timeseries: List[Timeseries] = parse_data_file_csv(
-                        self.filepath, self.sampling_rate,self.timeseries
-                    )
-                else:
-                    self.timeseries: List[Timeseries] = parse_data_file_csv(
-                        self.filepath, self.sampling_rate,self.timeseries
-                    )
+                
+                self.timeseries: List[Timeseries] = parse_data_file_csv(
+                    self.filepath, self.sampling_rate,self.timeseries)
+                
             self.update_signal_selector()
 
     def update_signal_selector(self):
