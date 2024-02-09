@@ -91,18 +91,18 @@ class Timeseries:
     timestamps = property(get_timestamps, set_timestamps)
 
 
-def parse_data_file_csv(file_path, sampling_rate):
+def parse_data_file_csv(file_path, sampling_rate,timeseries: List[Timeseries]):
     """
     Parses a data file into a timeseries object.
     :param file_path: The path to the file to parse.
     :return: A timeseries object.
     """
-    timeseries: List[Timeseries] = []
+    
     file_name = os.path.basename(file_path)
     print(f"Loading data from {file_name} ...")
     try:
         df = pd.read_csv(file_path)
-        time = df["TimeStamp (ms)"].values/1000
+        time = df["time"].values/1000
         column_name = df.columns.values[1:]
         print(column_name)
         count = 0

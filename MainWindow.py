@@ -85,6 +85,7 @@ class SignalViewer(QMainWindow):
         self.signals_plotted: List[
             Timeseries
         ] = []  # Variable to store the generated signal
+        self.timeseries: List[Timeseries] = []  # Variable to store the loaded signal
         self.time_stamps = None  # Variable to store the time array
         self.x_axis_in_seconds = False  # Initially, X-axis is in seconds
         self.file_name = "undefined"
@@ -467,9 +468,15 @@ class SignalViewer(QMainWindow):
             if self.filepath.endswith(".xdf"):
                 self.timeseries: List[Timeseries] = parse_data_file_xdf(self.filepath)
             else:
-                self.timeseries: List[Timeseries] = parse_data_file_csv(
-                    self.filepath, self.sampling_rate
-                )
+                if(self.timeseries is None):
+                    self.timeseries: List[Timeseries] = []
+                    self.timeseries: List[Timeseries] = parse_data_file_csv(
+                        self.filepath, self.sampling_rate,self.timeseries
+                    )
+                else:
+                    self.timeseries: List[Timeseries] = parse_data_file_csv(
+                        self.filepath, self.sampling_rate,self.timeseries
+                    )
             self.update_signal_selector()
 
     def update_signal_selector(self):
