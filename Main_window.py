@@ -49,8 +49,10 @@ class SignalViewer(QMainWindow):
         self.start_sample = 0      # Start sample for FFT
         self.end_sample = 500      # End sample for FFT
         self.signal = None         # Variable to store the generated signal
+
+        self.signals_plotted: List[Timeseries] = []  # Variable to store the generated signal
         self.time = None           # Variable to store the time array
-        self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
+        self.x_axis_in_seconds = False  # Initially, X-axis is in seconds
         self.file_name= "undefined"
         # Main Widget and Layout
         self.main_widget = QWidget()
@@ -106,7 +108,15 @@ class SignalViewer(QMainWindow):
 
         self.apply_filter_button = QPushButton("Apply Filter")
         self.apply_filter_button.clicked.connect(self.apply_filter)
-
+        
+        # Signal selector dropdown selector FFT
+        self.signal_selector_dropdown_fft = QComboBox()
+        self.signal_selector_dropdown_fft.addItems(["No Signal Loaded"])
+        self.signal_selector_dropdown_fft.currentIndexChanged.connect(self.signal_selector_index_changed_fft)
+        signal_selector_label_fft = QLabel("Signal: FFT")
+        
+        self.filter_control_layout.addWidget(signal_selector_label_fft)
+        self.filter_control_layout.addWidget(self.signal_selector_dropdown_fft)
         self.filter_control_layout.addWidget(QLabel("Filter Type:"))
         self.filter_control_layout.addWidget(self.filter_type_dropdown)
         self.filter_control_layout.addWidget(QLabel("Cutoff Frequency:"))
@@ -136,8 +146,14 @@ class SignalViewer(QMainWindow):
         # Signal selector dropdown
         self.signal_selector_dropdown = QComboBox()
         self.signal_selector_dropdown.addItems(["No Signal Loaded"])
-        self.right_layout.addWidget(self.signal_selector_dropdown)
-        self.signal_selector_dropdown.currentIndexChanged.connect(self.signal_selector_index_changed)
+        self.signal_control_layout = QHBoxLayout()
+        signal_selector_label = QLabel("Signal:")
+        signal_selector_label.setFixedSize(50, 20)
+        self.signal_control_layout.addWidget(signal_selector_label)
+        self.signal_control_layout.addWidget(self.signal_selector_dropdown)
+       
+        self.right_layout.addLayout(self.signal_control_layout)
+        self.signal_selector_dropdown.currentIndexChanged.connect(self.signal_selector_index_changed_fft)
         
         self.x_axis_in_seconds = True  # Initially, X-axis is in seconds
 
@@ -147,6 +163,17 @@ class SignalViewer(QMainWindow):
         # Set Main Widget and Window Title
         self.setCentralWidget(self.main_widget)
         self.setWindowTitle("Signal Analysis Tool")
+
+
+
+
+
+
+
+
+
+
+
 
     def apply_filter(self):
         filter_type = self.filter_type_dropdown.currentText()
@@ -265,12 +292,12 @@ class SignalViewer(QMainWindow):
         self.signal_selector_dropdown.clear()
         self.signal_selector_dropdown.addItems([timeseries.name for timeseries in self.timeseries])
         self.signal_selector_dropdown.setCurrentIndex(0)
-        self.signal_selector_index_changed(0)
+        self.signal_selector_index_changed_fft(0)
 
     #########################
     # Signal Event Handlers #
     #########################
-    def signal_selector_index_changed(self, index):
+    def signal_selector_index_changed_fft(self, index):
         """ 
         signal handler for signal selector dropdown 
         """
