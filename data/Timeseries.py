@@ -8,7 +8,7 @@ from typing import List
 import pyxdf
 import numpy as np
 
-
+from scipy.interpolate import interp1d
 class Timeseries:
     """
     Class representing a timeseries.
@@ -92,45 +92,47 @@ class Timeseries:
     timestamps = property(get_timestamps, set_timestamps)
 
 
-def parse_data_file_csv(file_path, sampling_rate,timeseries: List[Timeseries]):
+def parse_data_file_csv(file_path, target_sampling_rate, timeseries: List[Timeseries]):
     """
-    Parses a data file into a timeseries object.
-    :param file_path: The path to the file to parse.
-    :return: A timeseries object.
+    Parses a data file, synchronizes start times of signals, and resamples them to a target sampling rate.
+    :param file_path: Path to the CSV file.
+    :param target_sampling_rate: Desired sampling rate (in Hz).
+    :param timeseries: List to append the resulting Timeseries objects to.
+    :return: Updated list of Timeseries objects.
     """
-    sampling_rate_effective=0
     file_name = os.path.basename(file_path)
     print(f"Loading data from {file_name} ...")
     try:
         df = pd.read_csv(file_path)
-        time = df["time"].values
-        time_diffs=np.diff(time)
-        sampling_rate_effective=1/np.mean(time_diffs)
-        print(f"Effective sampling rate: {sampling_rate_effective} Hz")
-        # Calculate the number of zeros to add based on the desired start time of 0 seconds
-        desired_start_time = 0
-        actual_start_time = time[0]
-        samples_to_add = int(np.ceil((actual_start_time - desired_start_time) * sampling_rate_effective))
-        print(f"Number of zero-valued samples to add: {samples_to_add}")
-
-        # Adjust the time array by adding time points at the beginning
-        initial_time = time[0] - (samples_to_add / sampling_rate_effective)
-        new_time_points = np.linspace(initial_time, time[0], num=samples_to_add, endpoint=False)
-        time = np.concatenate((new_time_points, time))
-
-        column_name = df.columns.values[1:]
-        print("columnname:"+str(column_name))
+        original_time = df['time'].values  # Assumes 'time' is in seconds
+        
+        # Find the minimum start time across signals if they are supposed to start at the same time
+        # For individual signal adjustment, this part needs to be adapted
+        min_start_time = np.min(original_time)
+        
+        # Calculate new start time based on the need to start at 0
+        start_offset = min_start_time  # Assuming the earliest signal starts at 0 after adjustment
+        
+        # Create a new, regularly spaced time vector starting from 0
+        total_duration = original_time[-1] - min_start_time
+        new_time_vector = np.arange(0, total_duration, 1 / target_sampling_rate)
+        
+        column_names = df.columns[1:]  # Skip the first column assuming it's the time column
+        print(f"Column names: {column_names}")
         count = 0
-        for column in column_name:
-            data = df[column].values
-            # Prepend zeros to the data array
-            zero_data = np.zeros(samples_to_add)
-            data = np.concatenate((zero_data, data))
-            timeseries.append(Timeseries(data, sampling_rate_effective, column, time))
+        for column in column_names:
+            # Shift original time series to start at 0 and interpolate
+            shifted_time = original_time - start_offset
+            interpolator = interp1d(shifted_time, df[column], bounds_error=False, fill_value=0)  # Extend with zeros outside original range
+            resampled_data = interpolator(new_time_vector)
+            
+            # Append the new, resampled timeseries to the list
+            timeseries.append(Timeseries(resampled_data, target_sampling_rate, column, new_time_vector))
             count += 1
-        print(f"Loaded {count} timeseries from {file_name}.")
+        
+        print(f"Loaded and resampled {count} timeseries from {file_name}.")
     except Exception as e:
-        print(f"Error loading from CSV: {e}")
+        print(f"Error loading and resampling from CSV: {e}")
     return timeseries
 
 
