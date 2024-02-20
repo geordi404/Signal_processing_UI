@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from scipy.interpolate import interp1d
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -173,9 +174,9 @@ class SignalViewer(QMainWindow):
         self.right_layout.addWidget(self.filter_control_panel)
 
         # Save to Excel Button
-        # self.save_excel_button = QPushButton("Save Signal to Excel")
-        # self.save_excel_button.clicked.connect(self.save_to_excel)
-        # self.right_layout.addWidget(self.save_excel_button)
+        self.save_excel_button = QPushButton("Save Signal to Excel")
+        self.save_excel_button.clicked.connect(self.save_to_csv)
+        self.right_layout.addWidget(self.save_excel_button)
 
         # Load from Excel Button
         self.load_excel_button = QPushButton("Load Signal from csv")
@@ -442,20 +443,58 @@ class SignalViewer(QMainWindow):
         )
         self.bottom_right_panel.draw()
 
-    def save_to_excel(self):
-        if self.signals_plotted is not None:
-            # Create a DataFrame and save to Excel
-            df = pd.DataFrame(
-                {"Time": self.time_stamps, "Signal": self.signals_plotted}
-            )
-            try:
-                self.filepath = (
-                    "signal_data.xlsx"  # You can modify the file path as needed
-                )
-                df.to_excel(self.filepath, index=False)
-                print(f"Signal data saved to {self.filepath}")
-            except Exception as e:
-                print(f"Error saving to Excel: {e}")
+    def save_to_csv(self):  # Method to save signals to a CSV file
+        # Check if there are any signals to save
+        if self.signals_plotted:
+            # Determine the maximum length of the signals
+            max_length = max(len(ts.values_data) for ts in self.signals_plotted)
+
+            # Initialize a dictionary to hold our data
+            data_dict = {'Time': []}  # Initialize 'Time' separately to handle different lengths
+            
+            # Iterate over each Timeseries object in signals_plotted
+            for ts in self.signals_plotted:
+                # Interpolate signal data if necessary
+                current_length = len(ts.values_data)
+                if current_length < max_length:
+                    # Generate new time vector for interpolation
+                    new_time_vector = np.linspace(ts.timestamps_data[0], ts.timestamps_data[-1], num=max_length)
+                    
+                    # Interpolate both timestamps and data to the new time vector
+                    time_interpolator = interp1d(ts.timestamps_data, ts.timestamps_data, kind='linear', fill_value="extrapolate")
+                    data_interpolator = interp1d(ts.timestamps_data, ts.values_data, kind='linear', fill_value="extrapolate")
+                    
+                    # Create interpolated timestamps and data
+                    interpolated_time = time_interpolator(new_time_vector)
+                    interpolated_data = data_interpolator(new_time_vector)
+                else:
+                    # No interpolation needed, use original data and timestamps
+                    interpolated_time = ts.timestamps_data
+                    interpolated_data = ts.values_data
+                
+                # Add the interpolated or original data and timestamps to the data dictionary
+                data_dict[ts.name] = interpolated_data
+                if len(data_dict['Time']) < len(interpolated_time):  # Update the 'Time' column to match the longest timestamps
+                    data_dict['Time'] = interpolated_time
+
+            # Create a DataFrame from the dictionary
+            df = pd.DataFrame(data_dict)
+            
+            # Open a file dialog to ask the user for a file name
+            fileName, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv)")
+            
+            # Check if the user provided a file name
+            if fileName:
+                # Attempt to save the DataFrame to a CSV file
+                try:
+                    df.to_csv(fileName, index=False)
+                    print(f"Signal data saved to {fileName}")
+                except Exception as e:
+                    print(f"Error saving to CSV: {e}")
+            else:
+                print("Save operation cancelled.")
+        else:
+            print("No signals to save.")
 
     def load_from_csv(self):
         self.filepath, _ = QFileDialog.getOpenFileName(
