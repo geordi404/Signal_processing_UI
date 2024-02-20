@@ -175,7 +175,7 @@ class SignalViewer(QMainWindow):
 
         # Save to Excel Button
         self.save_excel_button = QPushButton("Save Signal to Excel")
-        self.save_excel_button.clicked.connect(self.save_to_csv)
+        self.save_excel_button.clicked.connect(lambda : self.save_to_csv(self.start_sample,self.end_sample))
         self.right_layout.addWidget(self.save_excel_button)
 
         # Load from Excel Button
@@ -443,38 +443,43 @@ class SignalViewer(QMainWindow):
         )
         self.bottom_right_panel.draw()
 
-    def save_to_csv(self):  # Method to save signals to a CSV file
+    def save_to_csv(self, start_sample, stop_sample):  # Method to save signals to a CSV file
         # Check if there are any signals to save
-        if self.signals_plotted:
-            # Determine the maximum length of the signals
-            max_length = max(len(ts.values_data) for ts in self.signals_plotted)
 
+        # Convert start and stop samples to integers
+        start_sample = int(start_sample)
+        stop_sample = int(stop_sample)
+
+        if self.signals_plotted:
             # Initialize a dictionary to hold our data
-            data_dict = {'time': []}  # Initialize 'Time' separately to handle different lengths
-            
+            data_dict = {'time': []}  # Initialize 'time' separately to handle different lengths
+
             # Iterate over each Timeseries object in signals_plotted
             for ts in self.signals_plotted:
-                # Interpolate signal data if necessary
-                current_length = len(ts.values_data)
-                if current_length < max_length:
-                    # Generate new time vector for interpolation
-                    new_time_vector = np.linspace(ts.timestamps_data[0], ts.timestamps_data[-1], num=max_length)
+                # Extract the segment of the timeseries between start_sample and stop_sample
+                segment_time = ts.timestamps_data[start_sample:stop_sample+1]
+                segment_data = ts.values_data[start_sample:stop_sample+1]
+
+                # Check if segment data needs to be interpolated
+                if len(segment_data) < (stop_sample - start_sample + 1):
+                    # Generate new time vector for interpolation within the segment
+                    new_time_vector = np.linspace(segment_time[0], segment_time[-1], num=stop_sample - start_sample + 1)
                     
                     # Interpolate both timestamps and data to the new time vector
-                    time_interpolator = interp1d(ts.timestamps_data, ts.timestamps_data, kind='linear', fill_value="extrapolate")
-                    data_interpolator = interp1d(ts.timestamps_data, ts.values_data, kind='linear', fill_value="extrapolate")
+                    time_interpolator = interp1d(segment_time, segment_time, kind='linear', fill_value="extrapolate")
+                    data_interpolator = interp1d(segment_time, segment_data, kind='linear', fill_value="extrapolate")
                     
                     # Create interpolated timestamps and data
                     interpolated_time = time_interpolator(new_time_vector)
                     interpolated_data = data_interpolator(new_time_vector)
                 else:
-                    # No interpolation needed, use original data and timestamps
-                    interpolated_time = ts.timestamps_data
-                    interpolated_data = ts.values_data
+                    # Use the extracted segment directly if no interpolation is needed
+                    interpolated_time = segment_time
+                    interpolated_data = segment_data
                 
-                # Add the interpolated or original data and timestamps to the data dictionary
+                # Add the interpolated or original segment data and timestamps to the data dictionary
                 data_dict[ts.name] = interpolated_data
-                if len(data_dict['time']) < len(interpolated_time):  # Update the 'Time' column to match the longest timestamps
+                if len(data_dict['time']) < len(interpolated_time):  # Update the 'time' column to match the longest segment
                     data_dict['time'] = interpolated_time
 
             # Create a DataFrame from the dictionary
