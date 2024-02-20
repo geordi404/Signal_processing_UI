@@ -104,8 +104,14 @@ def parse_data_file_csv(file_path, target_sampling_rate, timeseries: List[Timese
     print(f"Loading data from {file_name} ...")
     try:
         df = pd.read_csv(file_path)
-        original_time = df['time'].values  # Assumes 'time' is in seconds
-        
+    
+        # Determine the time column and convert it if necessary
+        if df.columns[0] == 'time':
+            original_time = df['time'].values  # Already in seconds
+        elif df.columns[0] == 'TimeStamp (ms)':
+            original_time = df['TimeStamp (ms)'].values * 0.001  # Convert from ms to seconds
+        else:
+            raise ValueError("Unknown time column name")
         # Find the minimum start time across signals if they are supposed to start at the same time
         # For individual signal adjustment, this part needs to be adapted
         min_start_time = np.min(original_time)
