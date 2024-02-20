@@ -450,7 +450,7 @@ class SignalViewer(QMainWindow):
             max_length = max(len(ts.values_data) for ts in self.signals_plotted)
 
             # Initialize a dictionary to hold our data
-            data_dict = {'Time': []}  # Initialize 'Time' separately to handle different lengths
+            data_dict = {'time': []}  # Initialize 'Time' separately to handle different lengths
             
             # Iterate over each Timeseries object in signals_plotted
             for ts in self.signals_plotted:
@@ -474,8 +474,8 @@ class SignalViewer(QMainWindow):
                 
                 # Add the interpolated or original data and timestamps to the data dictionary
                 data_dict[ts.name] = interpolated_data
-                if len(data_dict['Time']) < len(interpolated_time):  # Update the 'Time' column to match the longest timestamps
-                    data_dict['Time'] = interpolated_time
+                if len(data_dict['time']) < len(interpolated_time):  # Update the 'Time' column to match the longest timestamps
+                    data_dict['time'] = interpolated_time
 
             # Create a DataFrame from the dictionary
             df = pd.DataFrame(data_dict)
