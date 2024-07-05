@@ -597,7 +597,9 @@ class SignalViewer(QMainWindow):
         """
         Normalize a signal
         """
+        count=0
         for i,signal in enumerate(self.signals_plotted):
-            self.signals_plotted[i].values = normalize_range(signal.values)
+            self.signals_plotted[i].values = normalize_range(signal.values)+count
+            count=count+1
         print("normalize signal")
-        self.plot_signals(self.file_name, "amplitude")
+        self.plot_signals(self.file_name, "amplitude(normalisée)")
